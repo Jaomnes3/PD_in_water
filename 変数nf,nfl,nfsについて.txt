@@ -1,0 +1,58 @@
+粒子の沈降凝集プログラムにおけるnf(),nfl(),nfs()の意味
+
+
+************ <mainpro.f> *************
+**** 球相当径計算用データの初期化 ****
+
+      do 507 i=1,ip
+          nf(i)=i　            !nf()：凝集体番号は凝集する前は各粒子番号
+          massf(i)=mass(i)     !massf():凝集体質量は凝集する前は各粒子質量
+        if(r(i).gt.RADJ) then  !RADJは大粒子と小粒子の中間の半径。大粒子か小粒子かの判定をしている。
+          nfl(i) = 1           !i粒子は大粒子であり、まだ凝集していないのでnfl()：大粒子数が１となる。
+          nfs(i) = 0           !逆にnfs()：小粒子数は０である。
+        else
+          nfl(i) = 0           !i粒子が小粒子であれば、大粒子数が０となる。
+          nfs(i) = 1           !まだ凝集していないので、小粒子数が１となる。
+        endif
+  507 continue
+
+**************************************
+
+
+************** <PP.f> *************************
+****粒子同士が接触していると判定された場合*****
+
+      if(nf(i).eq.nf(j)) then   !nf()は凝集体の番号である。つまり、接触しているi,j粒子がすでにある凝集体として番号付けされているならば995に飛ぶ。
+        goto 995
+      endif
+
+      if(nf(i).lt.nf(j)) then   !i凝集粒子の番号がj凝集粒子の番号より小さければ、
+        nfmin = nf(i)           !nfmin：凝集粒子の若い番号にi凝集粒子の番号をつける。
+        nfmax = nf(j)           !nfmax：凝集粒子の上の番号にj凝集粒子の番号をつける
+C        nf(j) = nfmin
+        do 992 ii=1,ip
+          if(nf(ii).eq.nfmax) then !凝集粒子のうちj凝集粒子の番号がついているものは
+            nf(ii)=nfmin           !i凝集粒子の番号に書き換える
+          endif
+  992   continue
+      else
+        nfmin = nf(j)
+        nfmax = nf(i)
+C        nf(i) = nfmin
+        do 993 ii=1,ip
+          if(nf(ii).eq.nfmax) then
+            nf(ii)=nfmin
+          endif
+  993   continue
+      endif
+
+      massf(nfmin) = massf(nfmin)+massf(nfmax) !凝集体質量を足し合わせて新しい凝集体質量を求める。
+      nfl  (nfmin) = nfl(nfmin)+nfl(nfmax)     !大粒子の数を足し合わせる
+      nfs  (nfmin) = nfs(nfmin)+nfs(nfmax)     !小粒子の数を足し合わせる
+      massf(nfmax) = 0.0　　　　　　　　　　　 !大きい番号の凝集体のデータを０にする　
+      nfl  (nfmax) = 0                         !大きい番号の凝集体のデータを０にする
+      nfs  (nfmax) = 0                         !大きい番号の凝集体のデータを０にする
+
+  995 continue
+
+***********************************************
